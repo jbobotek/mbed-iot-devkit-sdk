@@ -7,8 +7,9 @@
 #include "SystemWiFi.h"
 #include "Telemetry.h"
 #include "DevkitDPSClient.h"
-#include "iothub_client_hsm_ll.h"
+#include "iothub_client_ll.h"
 #include "SystemVersion.h"
+#include <iothub_client_hsm_ll.h>
 
 #define CONNECT_TIMEOUT_MS 30000
 #define CHECK_INTERVAL_MS 5000
@@ -40,6 +41,8 @@ static char *iothub_hostname = NULL;
 static char *miniSolutionName = NULL;
 
 extern bool is_iothub_from_dps;
+
+extern void ota_callback(const unsigned char *payLoad, size_t size);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Utilities
@@ -160,7 +163,7 @@ static char *GetHostNameFromConnectionString(char *connectionString)
 
 static void FreeEventInstance(EVENT_INSTANCE *event)
 {
-    if (event != NULL)    
+    if (event != NULL)
     {
         if (event->type == MESSAGE)
         {
@@ -289,6 +292,7 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT ReceiveMessageCallback(IOTHUB_MESSAGE_HA
 
 static void DeviceTwinCallback(DEVICE_TWIN_UPDATE_STATE updateState, const unsigned char *payLoad, size_t size, void *userContextCallback)
 {
+    ota_callback(payLoad, size);
     if (_device_twin_callback)
     {
         _device_twin_callback(updateState, payLoad, size);
@@ -354,7 +358,7 @@ static bool SendEventOnce(EVENT_INSTANCE *event)
     uint64_t start_ms = SystemTickCounterRead();
 
     CheckConnection();
-    
+
     if (event->type == MESSAGE)
     {
         if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, event->messageHandle, SendConfirmationCallback, event) != IOTHUB_CLIENT_OK)
@@ -468,7 +472,15 @@ bool DevKitMQTTClient_Init(bool hasDeviceTwin, bool traceOn)
         // Use DPS
         iothub_hostname = DevkitDPSGetIoTHubURI();
         iotHubClientHandle = IoTHubClient_LL_CreateFromDeviceAuth(iothub_hostname, DevkitDPSGetDeviceID(), MQTT_Protocol);
-        LogInfo(">>>IoTHubClient_LL_CreateFromDeviceAuth %s, %s, %p", iothub_hostname, DevkitDPSGetDeviceID(), iotHubClientHandle);
+        if (iotHubClientHandle)
+        {
+            LogInfo(">>>IoTHubClient_LL_CreateFromDeviceAuth %s, %s, %p", iothub_hostname, DevkitDPSGetDeviceID(), iotHubClientHandle);
+        }
+        else
+        {
+            LogError(">>>IoTHubClient_LL_CreateFromDeviceAuth %s, %s", iothub_hostname, DevkitDPSGetDeviceID());
+            return false;
+        }
     }
     else
     {
@@ -715,6 +727,12 @@ void DevKitMQTTClient_Close(void)
     {
         IoTHubClient_LL_Destroy(iotHubClientHandle);
         iotHubClientHandle = NULL;
+
+        if (!is_iothub_from_dps && iothub_hostname)
+        {
+            free(iothub_hostname);
+            iothub_hostname = NULL;
+        }
     }
 }
 
