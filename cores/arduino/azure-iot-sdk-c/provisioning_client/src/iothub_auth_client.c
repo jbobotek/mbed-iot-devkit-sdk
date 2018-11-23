@@ -170,7 +170,7 @@ IOTHUB_SECURITY_HANDLE iothub_device_auth_create()
             }
         }
 #endif
-#if defined(HSM_TYPE_SYMM_KEY) || defined(HSM_AUTH_TYPE_CUSTOM)
+#if defined(HSM_TYPE_SYMM_KEY)
         if (result != NULL && iothub_security_t == IOTHUB_SECURITY_TYPE_SYMMETRIC_KEY)
         {
             result->cred_type = AUTH_TYPE_SYMM_KEY;
@@ -373,7 +373,7 @@ CREDENTIAL_RESULT* iothub_device_auth_generate_credentials(IOTHUB_SECURITY_HANDL
                                 {
                                     sas_token_handle = STRING_construct_sprintf(SAS_TOKEN_FORMAT, STRING_c_str(url_encoded), STRING_c_str(urlEncodedSignature), expire_token, skn_key, skn_value);
                                 }
-                                
+
                                 STRING_delete(url_encoded);
                             }
                             else

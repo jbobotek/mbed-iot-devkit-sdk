@@ -263,6 +263,7 @@ PROV_AUTH_HANDLE prov_auth_create()
         }
         else
         {
+#if defined(HSM_TYPE_SYMM_KEY)
             result->sec_type = PROV_AUTH_TYPE_KEY;
             const HSM_CLIENT_KEY_INTERFACE* key_interface = hsm_client_key_interface();
             if ((key_interface == NULL) ||
@@ -276,6 +277,10 @@ PROV_AUTH_HANDLE prov_auth_create()
                 free(result);
                 result = NULL;
             }
+#else
+            LogError("Invalid secure device type was specified");
+            result = NULL;
+#endif
         }
 
         if (result != NULL)
@@ -539,6 +544,7 @@ char* prov_auth_construct_sas_token(PROV_AUTH_HANDLE handle, const char* token_s
             unsigned char* data_value;
             size_t data_len;
             (void)sprintf(payload, "%s\n%s", token_scope, expire_token);
+
             /* Codes_SRS_SECURE_ENCLAVE_CLIENT_07_031: [ prov_auth_get_certificate shall import the specified cert into the client using hsm_client_get_cert secure enclave function. ] */
             if (sign_sas_data(handle, payload, &data_value, &data_len) == 0)
             {

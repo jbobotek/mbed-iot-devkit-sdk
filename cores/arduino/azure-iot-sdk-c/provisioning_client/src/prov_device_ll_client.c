@@ -33,13 +33,16 @@ static const char* const JSON_NODE_KEY_NAME = "keyName";
 static const char* const JSON_NODE_OPERATION_ID = "operationId";
 static const char* const JSON_NODE_ASSIGNED_HUB = "assignedHub";
 static const char* const JSON_NODE_TPM_NODE = "tpm";
-static const char* const JSON_NODE_TRACKING_ID = "trackingId";
 static const char* const JSON_NODE_DATE_TIME = "lastUpdatedDateTimeUtc";
 static const char* const JSON_NODE_ERROR_MSG = "errorMessage";
+static const char* const JSON_NODE_ERROR_CODE = "errorCode";
 static const char* const PROV_FAILED_STATUS = "failed";
 static const char* const PROV_BLACKLISTED_STATUS = "blacklisted";
 
 static const char* const SAS_TOKEN_SCOPE_FMT = "%s/registrations/%s";
+
+#define DPS_HUB_ERROR_NO_HUB        400208
+#define DPS_HUB_ERROR_UNAUTH        400209
 
 #define SAS_TOKEN_DEFAULT_LIFETIME  2400
 #define EPOCH_TIME_T_VALUE          (time_t)0
@@ -84,7 +87,6 @@ typedef struct PROV_INSTANCE_INFO_TAG
 
     tickcounter_ms_t status_throttle;
     tickcounter_ms_t timeout_value;
-    bool first_get_status_sent;
 
     uint8_t prov_timeout;
 
@@ -221,9 +223,29 @@ static PROV_DEVICE_TRANSPORT_STATUS retrieve_status_type(const char* prov_status
     {
         result = PROV_DEVICE_TRANSPORT_STATUS_BLACKLISTED;
     }
+    else if (strcmp(prov_status, PROV_DISABLE_STATUS) == 0)
+    {
+        result = PROV_DEVICE_TRANSPORT_STATUS_DISABLED;
+    }
     else
     {
         result = PROV_DEVICE_TRANSPORT_STATUS_ERROR;
+    }
+    return result;
+}
+
+static int retrieve_json_number(JSON_Object* json_object, const char* field_name)
+{
+    int result;
+    JSON_Value* json_field;
+    if ((json_field = json_object_get_value(json_object, field_name)) == NULL)
+    {
+        LogError("failure retrieving json operation id");
+        result = 0;
+    }
+    else
+    {
+        result = (int)json_value_get_number(json_field);
     }
     return result;
 }
@@ -410,12 +432,25 @@ static PROV_JSON_INFO* prov_transport_process_json_reply(const char* json_docume
 
             case PROV_DEVICE_TRANSPORT_STATUS_ERROR:
             {
-#ifndef NO_LOGGING
                 char* json_operation_id = NULL;
                 JSON_Object* json_reg_state = NULL;
                 if ((json_reg_state = json_object_get_object(json_object, JSON_NODE_REG_STATUS)) != NULL &&
                     (json_operation_id = retrieve_json_item(json_object, JSON_NODE_OPERATION_ID)) != NULL)
                 {
+                    int error_code = retrieve_json_number(json_reg_state, JSON_NODE_ERROR_CODE);
+                    switch (error_code)
+                    {
+                        case DPS_HUB_ERROR_NO_HUB:
+                            prov_info->error_reason = PROV_DEVICE_RESULT_HUB_NOT_SPECIFIED;
+                            break;
+                        case DPS_HUB_ERROR_UNAUTH:
+                            prov_info->error_reason = PROV_DEVICE_RESULT_UNAUTHORIZED;
+                            break;
+                        default:
+                            prov_info->error_reason = PROV_DEVICE_RESULT_DEV_AUTH_ERROR;
+                            break;
+                    }
+#ifndef NO_LOGGING
                     JSON_Value* json_error_date_time = NULL;
                     JSON_Value* json_error_msg = NULL;
                     if ((json_error_msg = json_object_get_value(json_reg_state, JSON_NODE_ERROR_MSG)) != NULL &&
@@ -428,17 +463,24 @@ static PROV_JSON_INFO* prov_transport_process_json_reply(const char* json_docume
                         LogError("Unsuccessful json encountered: %s", json_document);
                     }
                     free(json_operation_id);
+#endif
                 }
                 else
                 {
+                    prov_info->error_reason = PROV_DEVICE_RESULT_DEV_AUTH_ERROR;
                     LogError("Unsuccessful json encountered: %s", json_document);
                 }
-#endif
-                prov_info->error_reason = PROV_DEVICE_RESULT_DEV_AUTH_ERROR;
                 free(result);
                 result = NULL;
                 break;
             }
+
+            case PROV_DEVICE_TRANSPORT_STATUS_DISABLED:
+                LogError("The device has been disabled by DPS service");
+                prov_info->error_reason = PROV_DEVICE_RESULT_DISABLED;
+                free(result);
+                result = NULL;
+                break;
 
             default:
                 LogError("invalid json status specified %d", result->prov_status);
@@ -662,6 +704,12 @@ PROV_DEVICE_LL_HANDLE Prov_Device_LL_Create(const char* uri, const char* id_scop
                     destroy_instance(result);
                     result = NULL;
                 }
+                else
+                {
+                    // Ensure that we are passed the throttling time and send on the first send
+                    (void)tickcounter_get_current_ms(result->tick_counter, &result->status_throttle);
+                    result->status_throttle += (PROV_GET_THROTTLE_TIME * 1000);
+                }
             }
         }
     }
@@ -867,7 +915,7 @@ void Prov_Device_LL_DoWork(PROV_DEVICE_LL_HANDLE handle)
                         prov_info->error_reason = PROV_DEVICE_RESULT_ERROR;
                         prov_info->prov_state = CLIENT_STATE_ERROR;
                     }
-                    else if (prov_info->first_get_status_sent == false || (current_time - prov_info->status_throttle) / 1000 > PROV_GET_THROTTLE_TIME)
+                    else if ( (current_time - prov_info->status_throttle) / 1000 > PROV_GET_THROTTLE_TIME)
                     {
                         /* Codes_SRS_PROV_CLIENT_07_026: [ Upon receiving the reply of the CLIENT_STATE_URL_REQ_SEND message from  iothub_client shall process the the reply of the CLIENT_STATE_URL_REQ_SEND state ] */
                         if (prov_info->prov_transport_protocol->prov_transport_get_op_status(prov_info->transport_handle) != 0)
@@ -890,7 +938,6 @@ void Prov_Device_LL_DoWork(PROV_DEVICE_LL_HANDLE handle)
                             }
                         }
                         prov_info->status_throttle = current_time;
-                        prov_info->first_get_status_sent = true;
                     }
                     break;
                 }
@@ -925,7 +972,7 @@ void Prov_Device_LL_DoWork(PROV_DEVICE_LL_HANDLE handle)
         }
         else
         {
-            // Check the connection
+            // Check the connection 
             if (prov_info->prov_timeout > 0)
             {
                 tickcounter_ms_t current_time = 0;
@@ -1045,7 +1092,15 @@ PROV_DEVICE_RESULT Prov_Device_LL_SetOption(PROV_DEVICE_LL_HANDLE handle, const 
         }
         else
         {
-            result = PROV_DEVICE_RESULT_OK;
+            if (handle->prov_transport_protocol->prov_transport_set_option(handle->transport_handle, option_name, value) != 0)
+            {
+                LogError("Failure in prov transport set option\n");
+                result = PROV_DEVICE_RESULT_ERROR;
+            }
+            else
+            {
+                result = PROV_DEVICE_RESULT_OK;
+            }
         }
     }
     return result;

@@ -1398,7 +1398,6 @@ ECDH_generate(affine_point_t *P1, bigval_t *k)
     if (rv < 0) {
         return (-1);
     }
-
     pointMpyP(P1, k, &base_point);
 
     return (0);
@@ -1674,10 +1673,7 @@ get_random_bytes(uint8_t *buf, size_t len)
     srand((unsigned)time(NULL));
     for (; len; len--)
     {
-    //  TODO: REVERT THIS WHEN THE SDK
-    //        NO LONGER REQUIRES IT!!
-    //  *buf++ = (uint8_t)rand();
-        *buf++ = (uint8_t)len;
+        *buf++ = (uint8_t)rand();
     }
     return 0;
 }

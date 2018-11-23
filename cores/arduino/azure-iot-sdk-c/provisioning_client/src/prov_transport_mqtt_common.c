@@ -157,6 +157,7 @@ static void mqtt_error_callback(MQTT_CLIENT_HANDLE handle, MQTT_CLIENT_EVENT_ERR
     }
 }
 
+#ifndef NO_LOGGING
 static const char* retrieve_mqtt_return_codes(CONNECT_RETURN_CODE rtn_code)
 {
     switch (rtn_code)
@@ -178,6 +179,7 @@ static const char* retrieve_mqtt_return_codes(CONNECT_RETURN_CODE rtn_code)
         return "Unknown";
     }
 }
+#endif // NO_LOGGING
 
 static void mqtt_operation_complete_callback(MQTT_CLIENT_HANDLE handle, MQTT_CLIENT_EVENT_RESULT event_result, const void* msg_info, void* user_ctx)
 {
@@ -227,7 +229,7 @@ static void mqtt_operation_complete_callback(MQTT_CLIENT_HANDLE handle, MQTT_CLI
                     {
                         if (suback->qosReturn[index] == DELIVER_FAILURE)
                         {
-                            LogError("Subscribe delivery failure of subscribe %zu", index);
+                            LogError("Subscribe delivery failure of subscribe %lu", (unsigned long)index);
                             break;
                         }
                     }
@@ -258,7 +260,7 @@ static void mqtt_operation_complete_callback(MQTT_CLIENT_HANDLE handle, MQTT_CLI
             case MQTT_CLIENT_ON_UNSUBSCRIBE_ACK:
                 break;
             default:
-                LogError("Unknown MQTT_CLIENT_EVENT_RESULT item %d");
+                LogError("Unknown MQTT_CLIENT_EVENT_RESULT item %d", (int)event_result);
                 break;
         }
     }
@@ -284,7 +286,7 @@ static void mqtt_notification_callback(MQTT_MESSAGE_HANDLE handle, void* user_ct
             {
                 // If the status code is > 429 then this is a transient error
                 long status_code = atol(topic_resp + status_pos);
-                if (status_code > PROV_STATUS_CODE_TRANSIENT_ERROR)
+                if (status_code >= PROV_STATUS_CODE_TRANSIENT_ERROR)
                 {
                     // On transient error reset the transport to send state
                     mqtt_info->transport_state = TRANSPORT_CLIENT_STATE_TRANSIENT;
@@ -459,10 +461,9 @@ static char* construct_username(PROV_TRANSPORT_MQTT_INFO* mqtt_info)
     return result;
 }
 
-static int construct_transport(PROV_TRANSPORT_MQTT_INFO* mqtt_info)
+static int create_transport_io_object(PROV_TRANSPORT_MQTT_INFO* mqtt_info)
 {
     int result;
-
     if (mqtt_info->transport_io == NULL)
     {
         HTTP_PROXY_OPTIONS* transport_proxy;
@@ -482,57 +483,73 @@ static int construct_transport(PROV_TRANSPORT_MQTT_INFO* mqtt_info)
         }
         else
         {
-            if (mqtt_info->certificate != NULL && xio_setoption(mqtt_info->transport_io, OPTION_TRUSTED_CERT, mqtt_info->certificate) != 0)
-            {
-                LogError("Failure setting trusted certs");
-                result = __FAILURE__;
-                xio_destroy(mqtt_info->transport_io);
-                mqtt_info->transport_io = NULL;
-            }
-            else if (mqtt_info->hsm_type == TRANSPORT_HSM_TYPE_X509)
-            {
-                if (mqtt_info->x509_cert != NULL && mqtt_info->private_key != NULL)
-                {
-                    if (xio_setoption(mqtt_info->transport_io, OPTION_X509_ECC_CERT, mqtt_info->x509_cert) != 0)
-                    {
-                        LogError("Failure setting x509 cert on xio");
-                        xio_destroy(mqtt_info->transport_io);
-                        mqtt_info->transport_io = NULL;
-                        result = __FAILURE__;
-                    }
-                    else if (xio_setoption(mqtt_info->transport_io, OPTION_X509_ECC_KEY, mqtt_info->private_key) != 0)
-                    {
-                        LogError("Failure setting x509 key on xio");
-                        if (mqtt_info->error_cb != NULL)
-                        {
-                            mqtt_info->error_cb(PROV_DEVICE_ERROR_KEY_FAIL, mqtt_info->error_ctx);
-                        }
-                        xio_destroy(mqtt_info->transport_io);
-                        mqtt_info->transport_io = NULL;
-                        result = __FAILURE__;
-                    }
-                    else
-                    {
-                        result = 0;
-                    }
-                }
-                else
-                {
-                    LogError("x509 certificate is NULL");
-                    xio_destroy(mqtt_info->transport_io);
-                    mqtt_info->transport_io = NULL;
-                    result = __FAILURE__;
-                }
-            }
-            else
-            {
-                result = 0;
-            }
+            result = 0;
         }
     }
     else
     {
         result = 0;
+    }
+    return result;
+}
+
+static int construct_transport(PROV_TRANSPORT_MQTT_INFO* mqtt_info)
+{
+    int result;
+
+    if (create_transport_io_object(mqtt_info) != 0)
+    {
+        LogError("Failed constructing transport io");
+        result = __FAILURE__;
+    }
+    else
+    {
+        if (mqtt_info->certificate != NULL && xio_setoption(mqtt_info->transport_io, OPTION_TRUSTED_CERT, mqtt_info->certificate) != 0)
+        {
+            LogError("Failure setting trusted certs");
+            result = __FAILURE__;
+            xio_destroy(mqtt_info->transport_io);
+            mqtt_info->transport_io = NULL;
+        }
+        else if (mqtt_info->hsm_type == TRANSPORT_HSM_TYPE_X509)
+        {
+            if (mqtt_info->x509_cert != NULL && mqtt_info->private_key != NULL)
+            {
+                if (xio_setoption(mqtt_info->transport_io, OPTION_X509_ECC_CERT, mqtt_info->x509_cert) != 0)
+                {
+                    LogError("Failure setting x509 cert on xio");
+                    xio_destroy(mqtt_info->transport_io);
+                    mqtt_info->transport_io = NULL;
+                    result = __FAILURE__;
+                }
+                else if (xio_setoption(mqtt_info->transport_io, OPTION_X509_ECC_KEY, mqtt_info->private_key) != 0)
+                {
+                    LogError("Failure setting x509 key on xio");
+                    if (mqtt_info->error_cb != NULL)
+                    {
+                        mqtt_info->error_cb(PROV_DEVICE_ERROR_KEY_FAIL, mqtt_info->error_ctx);
+                    }
+                    xio_destroy(mqtt_info->transport_io);
+                    mqtt_info->transport_io = NULL;
+                    result = __FAILURE__;
+                }
+                else
+                {
+                    result = 0;
+                }
+            }
+            else
+            {
+                LogError("x509 certificate is NULL");
+                xio_destroy(mqtt_info->transport_io);
+                mqtt_info->transport_io = NULL;
+                result = __FAILURE__;
+            }
+        }
+        else
+        {
+            result = 0;
+        }
     }
     return result;
 }
@@ -630,6 +647,10 @@ void cleanup_mqtt_data(PROV_TRANSPORT_MQTT_INFO* mqtt_info)
     free(mqtt_info->private_key);
     free(mqtt_info->sas_token);
     free(mqtt_info->payload_data);
+    if (mqtt_info->transport_io != NULL)
+    {
+        xio_destroy(mqtt_info->transport_io);
+    }
     free(mqtt_info);
 }
 
@@ -1203,6 +1224,30 @@ int prov_transport_common_mqtt_set_proxy(PROV_DEVICE_TRANSPORT_HANDLE handle, co
                 /* Tests_PROV_TRANSPORT_MQTT_COMMON_07_040: [ On success prov_transport_common_mqtt_set_proxy shall return a zero value. ] */
                 result = 0;
             }
+        }
+    }
+    return result;
+}
+
+int prov_transport_common_mqtt_set_option(PROV_DEVICE_TRANSPORT_HANDLE handle, const char* option, const void* value)
+{
+    int result;
+    if (handle == NULL || option == NULL)
+    {
+        LogError("Invalid parameter specified handle: %p, option: %p", handle, option);
+        result = __FAILURE__;
+    }
+    else
+    {
+        PROV_TRANSPORT_MQTT_INFO* mqtt_info = (PROV_TRANSPORT_MQTT_INFO*)handle;
+        if (mqtt_info->transport_io == NULL && create_transport_io_object(mqtt_info) != 0)
+        {
+            LogError("Failure creating transport io object");
+            result = __FAILURE__;
+        }
+        else
+        {
+            result = xio_setoption(mqtt_info->transport_io, option, value);
         }
     }
     return result;

@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
-#include <assert.h>
 #include "azure_c_shared_utility/umock_c_prod.h"
 #include "azure_c_shared_utility/gballoc.h"
 #include "azure_c_shared_utility/urlencode.h"
@@ -62,15 +61,6 @@ typedef struct HSM_CLIENT_KEY_INFO_TAG
     const char* registration_name;
 } HSM_CLIENT_KEY_INFO;
 
-/*int hsm_client_key_init(void)
-{
-    return 0;
-}
-
-void hsm_client_key_deinit(void)
-{
-}*/
-
 HSM_CLIENT_HANDLE hsm_client_key_create(void)
 {
     HSM_CLIENT_KEY_INFO* result;
@@ -116,7 +106,6 @@ char* hsm_client_get_symmetric_key(HSM_CLIENT_HANDLE handle)
     else
     {
         HSM_CLIENT_KEY_INFO* key_client = (HSM_CLIENT_KEY_INFO*)handle;
-
         if (mallocAndStrcpy_s(&result, key_client->symmetrical_key) != 0)
         {
             LogError("Failed to allocate symmetrical_key.");
