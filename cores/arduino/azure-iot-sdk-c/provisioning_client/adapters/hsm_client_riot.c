@@ -181,11 +181,11 @@ static int generate_root_ca_info(HSM_CLIENT_X509_INFO* riot_info, RIOT_ECC_SIGNA
         LogError("Failure: RiotCrypt_Sign returned invalid status %d.", status);
         result = __FAILURE__;
     }
-    //else if (X509MakeRootCert(&der_ctx, tbs_sig) != 0)
-    //{
-    //    LogError("Failure: X509MakeRootCert");
-    //    result = __FAILURE__;
-    //}
+    else if (X509MakeRootCert(&der_ctx, tbs_sig) != 0)
+    {
+        LogError("Failure: X509MakeRootCert");
+        result = __FAILURE__;
+    }
     else
     {
         riot_info->root_ca_priv_length = sizeof(riot_info->root_ca_priv_pem);
@@ -514,20 +514,9 @@ void hsm_client_x509_deinit(void)
 {
 }
 
-// This is workaround for X509 individual enrollment
-extern bool IsIndividualRIoTIsEnabled();
-
 const HSM_CLIENT_X509_INTERFACE* hsm_client_x509_interface(void)
 {
-    if (IsIndividualRIoTIsEnabled())
-    {
-        // This is workaround for X509 individual enrollment
-        return hsm_client_x509_individual_interface();
-    }
-    else
-    {
-        return &x509_interface;
-    }
+    return &x509_interface;
 }
 
 HSM_CLIENT_HANDLE hsm_client_riot_create(void)
