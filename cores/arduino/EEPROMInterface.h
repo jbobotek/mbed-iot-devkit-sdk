@@ -13,7 +13,7 @@
 
 #define WIFI_SSID_MAX_LEN       32
 #define WIFI_PWD_MAX_LEN        64
-#define AZ_IOT_HUB_MAX_LEN      512
+#define AZ_IOT_HUB_MAX_LEN      1024
 #define DPS_UDS_MAX_LEN         64
 #define EEPROM_DEFAULT_LEN      200
 

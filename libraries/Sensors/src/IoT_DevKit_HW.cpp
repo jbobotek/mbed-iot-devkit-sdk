@@ -19,7 +19,6 @@ static LPS22HBSensor *pressureSensor;
 
 static char connString[AZ_IOT_HUB_MAX_LEN + 1] = {'\0'};
 static const char *boardName = NULL;
-static const char *boardInfo = NULL;
 
 // Blink the RGB LED
 static volatile uint64_t blinkRGBLEDTimeStart = 0;
@@ -183,7 +182,7 @@ const char *getDevKitName(void)
             LogError("No memory");
             return NULL;
         }
-        snprintf((char *)boardName, len, "MXChip IoT DevKit %s", GetBoardID()) + 1;
+        snprintf((char *)boardName, len, "MXChip IoT DevKit %s", GetBoardID());
     }
     return boardName;
 }
@@ -284,7 +283,7 @@ void startBlinkDevKitRGBLED(int msDuration)
 
 int textOutDevKitScreen(unsigned int line, const char *s, int wrap)
 {
-    Screen.print(line, s, (bool)wrap);
+    return Screen.print(line, s, (bool)wrap);
 }
 
 void drawDevKitScreen(unsigned char x0, unsigned char y0, unsigned char x1, unsigned char y1, unsigned char *image)
