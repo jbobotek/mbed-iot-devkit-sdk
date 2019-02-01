@@ -17,7 +17,7 @@ static LIS2MDLSensor *magnetometer;
 static IRDASensor *IrdaSensor;
 static LPS22HBSensor *pressureSensor;
 
-static char connString[AZ_IOT_HUB_MAX_LEN + 1] = {'\0'};
+static char *connString = NULL;
 static const char *boardName = NULL;
 
 // Blink the RGB LED
@@ -163,10 +163,22 @@ int initIoTDevKit(int isShowInfo)
 
 const char *getIoTHubConnectionString(void)
 {
-    if (connString[0] == '\0')
+    if (connString == NULL)
     {
+        uint8_t _connString[AZ_IOT_HUB_MAX_LEN + 1] = {'\0'};
         EEPROMInterface eeprom;
-        eeprom.read((uint8_t *)connString, AZ_IOT_HUB_MAX_LEN, 0, AZ_IOT_HUB_ZONE_IDX);
+        int ret = eeprom.read(_connString, AZ_IOT_HUB_MAX_LEN, 0, AZ_IOT_HUB_ZONE_IDX);
+        if (ret < 0)
+        {
+            LogError("Unable to get the azure iot connection string from EEPROM. Please set the value in configuration mode.");
+            return NULL;
+        }
+        else if (ret == 0)
+        {
+            LogError("The connection string is empty.\r\nPlease set the value in configuration mode.");
+            return NULL;
+        }
+        connString = strdup((char*)_connString);
     }
     return connString;
 }
