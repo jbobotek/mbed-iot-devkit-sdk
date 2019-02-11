@@ -251,7 +251,7 @@ bool __attribute__((section(".riot_fw"))) DevkitDPSClientStart(const char* globa
         LogError("Failed to initialize the platform.");
         result = false;
     }
-    else if (g_auth_type == DPS_AUTH_SYMMETRIC_KEY) && prov_dev_security_init(SECURE_DEVICE_TYPE_SYMMETRIC_KEY) != 0)
+    else if (g_auth_type == DPS_AUTH_SYMMETRIC_KEY && prov_dev_security_init(SECURE_DEVICE_TYPE_SYMMETRIC_KEY) != 0)
     {
         LogError("Failed to initialize the platform.");
         result = false;
