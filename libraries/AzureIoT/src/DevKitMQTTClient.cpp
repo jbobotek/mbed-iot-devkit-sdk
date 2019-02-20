@@ -16,11 +16,11 @@
 #include "iothub_client_hsm_ll.h"
 #include "iothub_device_client_ll.h"
 
-#define CONNECT_TIMEOUT_MS 30000
-#define CHECK_INTERVAL_MS 5000
+#define CONNECT_TIMEOUT_MS 5000
+#define CHECK_INTERVAL_MS 1000
 #define MQTT_KEEPALIVE_INTERVAL_S 120
 #define SEND_EVENT_RETRY_COUNT 2
-#define EVENT_TIMEOUT_MS 10000
+#define EVENT_TIMEOUT_MS 5000
 #define EVENT_CONFIRMED -2
 #define EVENT_FAILED -3
 
