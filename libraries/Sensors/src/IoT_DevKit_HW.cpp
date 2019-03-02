@@ -59,8 +59,8 @@ int initIoTDevKit(int isShowInfo)
 {
     if (isShowInfo)
     {
-		// Init the screen
-		Screen.init();
+        // Init the screen
+        Screen.init();
         Screen.print(0, "IoT DevKit");
         Screen.print(2, "Initializing...");
     }
