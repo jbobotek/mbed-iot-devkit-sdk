@@ -1,6 +1,13 @@
 arduino/devkit-sdk/AZ3166/jenkins/*
 arduino/devkit-sdk/AZ3166/src/bootloader/*
 arduino/devkit-sdk/AZ3166/src/libraries/Audio/*
+arduino/devkit-sdk/AZ3166/src/libraries/AudioV2/examples/*
+arduino/devkit-sdk/AZ3166/src/libraries/AzureIoT/examples/*
+arduino/devkit-sdk/AZ3166/src/libraries/FileSystem/examples/*
+arduino/devkit-sdk/AZ3166/src/libraries/MQTT/examples/*
+arduino/devkit-sdk/AZ3166/src/libraries/Sensors/examples/*
+arduino/devkit-sdk/AZ3166/src/libraries/WebSocket/examples/*
+arduino/devkit-sdk/AZ3166/src/libraries/WiFi/examples/*
 arduino/devkit-sdk/AZ3166/src/system/*
 arduino/devkit-sdk/AZ3166/src/variants/*
 arduino/devkit-sdk/AZ3166/tests/*
