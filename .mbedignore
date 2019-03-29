@@ -1,0 +1,8 @@
+arduino/devkit-sdk/AZ3166/jenkins/*
+arduino/devkit-sdk/AZ3166/src/bootloader/*
+arduino/devkit-sdk/AZ3166/src/libraries/Audio/*
+arduino/devkit-sdk/AZ3166/src/system/*
+arduino/devkit-sdk/AZ3166/src/variants/*
+arduino/devkit-sdk/AZ3166/tests/*
+arduino/devkit-sdk/AZ3166/tools/*
+
