@@ -6,4 +6,4 @@
 	url = https://github.com/VSChina/mbed-az3166-driver
 [submodule "arduino/devkit-sdk"]
 	path = arduino/devkit-sdk
-	url = https://github.com/Microsoft/devkit-sdk
+	url = https://github.com/jbobotek/devkit-sdk
