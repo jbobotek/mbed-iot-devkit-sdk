@@ -3,7 +3,7 @@
 	url = https://mseng@dev.azure.com/mseng/VSIoT/_git/devkit-azure-iot-sdk-c
 [submodule "components/mbed-az3166-driver"]
 	path = components/mbed-az3166-driver
-	url = https://mseng@dev.azure.com/mseng/VSIoT/_git/mbed-az3166-driver
+	url = https://placehold@dev.azure.com/mseng/VSIoT/_git/mbed-az3166-driver
 [submodule "arduino/devkit-sdk"]
 	path = arduino/devkit-sdk
 	url = https://github.com/jbobotek/devkit-sdk
